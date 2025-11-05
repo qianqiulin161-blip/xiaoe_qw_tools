@@ -1,0 +1,36 @@
+department: ["基础平台中心"] #捞单筛选的中心，可以输入多个
+Config: '/JiaoPei_config.yaml'
+SeekOrdersTime: ["10:00:00","10:30:00"] #捞单的开始和结束时间
+OrderType: ["助学","学习平台","课程"] #小车单需要筛选的创建人的所属部门，名称不用写全，但要唯一
+OrderTypeTester: [["zorohuang@xiaoe-tech.com", "1206196434@qq.com", "haideeye(叶文杰)"],["1206196434@qq.com"],["zorohuang@xiaoe-tech.com","haideeye(叶文杰)"]]  #每一个所属部门对于的测试负责人员
+PartPlanName: '教培产品' #小车计划的部分名称
+DepartmentId: 799 #所属部门的id
+AuthorizePersonId: [2113, 3618]  #创建计划时需要授权的人员id，可以去抓接口查看
+ApiSelf: [{'课程-准现网-拨测(每天18点)': '准现网-课程自动化拨测'}] #要执行的接口自动化名称，对应的report_tittle（report_tittle可以到接口自动化的编辑里面查看）
+ApiSelfAppId: {"助学": "appbrsddwff3517", "App": "appjvzazzgi8522", "课程": "app4do3eacy8172", "圈子": "appdheztlsk2061"} #必要的准现网自动化名单
+AddAppIdList: [20, 100, 200, 300, 500, 700] #每一批添加外灰的数量，在下午的窗口期只添加前4批，晚上的窗口期添加后两批
+ReviewTime: ["10:59","11:05"] #提醒评审的时间段
+iterationStage: [159, 160] #捞单时判断的迭代状态，抓接口查看
+CodingOrderStage:  [120, 140] #捞单时判断的上线单状态，抓接口查看
+filterConditions: [] #捞出的单中最后还需要过滤某创建人的单，输入创建人名称 例："qiulinqian(钱秋林)"
+relaxWorkDay: [] #需要跳过不捞单的工作日，节假日自动跳过，星期一是0，星期二是1  以此类推，不需要加引号
+robotWebHook: 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=e8d47949-e0ec-45ce-a234-6023d43b4d07' #发送消息的群聊机器人webhook
+AttentionNetWorkTime: ["15:00:00", "10:30:00"] #第一个时间是：提醒发布准现网系统的时间点（如果没有填写PhoneNum是没有效果的） 第二个时间是：提醒发布全网的时间点（会有消息发送）
+PhoneNum: '13640888629' #填写电话号码不需要引号， 可以打电话给对应的人发布准现网系统，发布全网,   没有可能填None
+Testers: [["qiulinqian(钱秋林)"], ["zorohuang(黄志伟)"],["haideeye(叶文杰)"]]
+ReviewPerson: [["georgeling(凌翔)"]]
+Drivers: [["georgeling(凌翔)"]]
+DriverTag: 7
+UIINFO: [["零售","2827687","6e1c5656-2794-42ce-b7ba-3bdac797bfd0","<@xunliu(刘勋)>"]]
+AppId: "cloudxmc90yszkv"
+
+
+PlanType: 0    # 0代表小车  1代表P1项目
+Self: {
+  "准现网": {
+    "departmen": "教培",
+    "appid": [{ "课程": "app4do3eacy8172" }],
+    "ui": [["课程","2793481","f6066e23-0591-48a7-9b19-d22dd41b00d9","<@haideeye><@zoeyhuang>"], ["助学", "4164651", "50a5af05-b571-45f9-96c0-07cf0145a6e2", "<@haideeye><@zoeyhuang>"]],
+    "api": [{ '课程-准现网-拨测(每天18点)': '准现网-课程自动化拨测' }]
+  }
+}
