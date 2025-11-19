@@ -1,19 +1,31 @@
-import logging
+import argparse
+import os
+
+
+parser = argparse.ArgumentParser(description="学习外灰现网变更提醒")
+parser.add_argument("--Config", type=str, help="对应的配置")
+
+args = parser.parse_args()
+
+os.environ["Config"] = args.Config
+
+
 import pymysql
 import requests
 from pymysql.cursors import DictCursor
-
-from common import robot_api
+from common.Exception import catch_exception
 from common.Log import Logger
 from common.YamlUtil import read_yaml_special
+from common import robot_api
+
 
 webHook_list = [{"教培": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=fa2ed43c-a184-4557-a02d-860bff372c37"}, {"企服": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=07624e68-023a-45d1-835c-0d1430d3ad0f"}]
 
 # 数据库配置常量
 DB_CONFIG = {
     'host': 'jumpserver.xiaoe-tools.com',
-    'user': 'f1d3b4ae-67fb-4e4d-be5b-468003c7ecd1',
-    'password': '0424OsKaiHl7v2Dq',
+    'user': '483e4d2b-02c1-4570-942f-33f05c569fd8',
+    'password': 'WP9u6docxMVg2OjG',
     'database': 'change_instance',
     'port': 33061,
     'cursorclass': DictCursor
@@ -114,6 +126,7 @@ def build_message_content(record, plan_info, systems, department):
     }
 
 
+@catch_exception(Logger)
 def main():
     """ 主逻辑"""
     sql_list = [{"教培": """

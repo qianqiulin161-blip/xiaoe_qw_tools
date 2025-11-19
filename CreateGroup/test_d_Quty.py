@@ -2,18 +2,20 @@ import ast
 import logging
 from datetime import datetime, timedelta
 from common import robot_api
+from common.Exception import catch_exception
 from common.Log import Logger
 from common.RedisConfig import r
 
 
 weekday_map = {0: "星期一", 1: "星期二", 2: "星期三", 3: "星期四", 4: "星期五", 5: "星期六", 6: "星期日"}
 students = ["sevenzhang(张鸿彬)", "nicholasfeng(酆益)", "kekejiang(蒋科)",
-            "yinaliu(刘峥炫)", "chschen(陈泽仕)", "junquanluo(罗君权)", "zepengzhang(张泽鹏)",
-            "bowang(王博)", "zeruallin(林鑫鹏)", "jackguan(管成)", "linkslin(林沛)",
-            "vitaszhuo(卓嘉宾)", "chilamli(李振朝)", "pennwang(王鹏)", "roundli(黎文涛)", "rolandzhang(张剑清)",
-            "wenqiangfeng(冯文强)", "abelchen", "whitonwang(王辉腾)", "cyruschang(常云骁)", "floweryang(阳花平)", "feiduan(段菲)"]
+            "chschen(陈泽仕)", "junquanluo(罗君权)", "zepengzhang(张泽鹏)",
+            "bowang(王博)", "zeruallin(林鑫鹏)", "linkslin(林沛)", 'sihaoli(李思豪)'
+            "vitaszhuo(卓嘉宾)", "chilamli(李振朝)", "pennwang(王鹏)", "roundli(黎文涛)",
+            "wenqiangfeng(冯文强)", "abelchen(陈洪升)", "whitonwang(王辉腾)", "cyruschang(常云骁)", "feiduan(段菲)","atunxu(徐皓扬)"]
 
 
+@catch_exception(Logger)
 def test_quty():
     sql = "SELECT * FROM t_admin_user WHERE username LIKE %s and state = 0"
     day, weekday = [], []
@@ -23,8 +25,8 @@ def test_quty():
     am = current_date.replace(hour=8, minute=0, second=0, microsecond=0)
     end = current_date.replace(hour=18, minute=0, second=0, microsecond=0)
 
-    # people = ['junquanluo', 'bowang']
-    # aa = ['whitonwang', 'abelchen', 'wenqiangfeng', 'kekejiang', 'nicholasfeng', 'rolandzhang', 'roundli', 'vitaszhuo', 'jackguan', 'zeruallin', 'sevenzhang', 'feiduan', 'cyruschang', 'pennwang', 'yinaliu']
+    # people = ['junquanluo(罗君权)', 'zepengzhang(张泽鹏)', 'bowang(王博)', 'zeruallin(林鑫鹏)', 'atunxu(徐皓扬)', 'sihaoli(李思豪)']
+    # aa =  ['junquanluo', 'feiduan(段菲)', 'cyruschang(常云骁)', 'whitonwang(王辉腾)', 'abelchen', 'wenqiangfeng(冯文强)', 'roundli(黎文涛)', 'pennwang(王鹏)', 'chilamli(李振朝)', 'vitaszhuo(卓嘉宾)', 'linkslin(林沛)', 'sevenzhang(张鸿彬)', 'nicholasfeng(酆益)', 'kekejiang(蒋科)', 'chschen(陈泽仕)']
     # r.delete("use_people")
     # r.delete("no_use_people")
     # r.set("use_people", str(aa))

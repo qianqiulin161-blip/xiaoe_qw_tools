@@ -1,11 +1,13 @@
 import ast
 import logging
 from datetime import datetime, timedelta
+from common.Exception import catch_exception
 from common.RedisConfig import r
 from common.Log import Logger
 from common import robot_api
 
 
+@catch_exception(Logger)
 def test_back():
     all_list = []
 

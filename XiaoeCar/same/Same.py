@@ -1,13 +1,15 @@
 from datetime import datetime
+from common.Exception import catch_exception
 from common.Log import Logger
-from common.robot_api import BySelfAppIds, SQLInfo, add_appId, back_plan, back_plan_another, build_type, change_statue_end, componentInfo, configInfo, find_use_appId_list, gary_other_operation, get_all_no_guiDang, get_hit, get_the_whole_network_info, in_plan, push_ready_appId, ready_line, recommend_appId, robot_smallCar, select_appId, taskInfo, upload_appId
+from common.RedisKey import RedisKeyManager
+from common.robot_api import BySelfAppIds, SQLInfo, add_appId, back_plan, back_plan_another, build_type, change_statue_end, componentInfo, configInfo, find_use_appId_list, gary_other_operation, get_all_no_guiDang, get_hit, get_plan_detail, get_the_whole_network_info, in_plan, push_ready_appId, ready_line, recommend_appId, robot_smallCar, select_appId, taskInfo, upload_appId
 from common.RedisConfig import r
 
 
 def up_appId(taskId, num, SelfAppIds, planId, label_id, culster_id, environment):
     """发布准现网名单逻辑 """
 
-    from XiaoeCar.self.test_SelfRun_API_UI import SelfRunAPIUI
+    from XiaoeCar.same.test_SelfRun_API_UI import SelfRunAPIUI
     runner = SelfRunAPIUI(planId)
 
     total = []
@@ -26,11 +28,11 @@ def up_appId(taskId, num, SelfAppIds, planId, label_id, culster_id, environment)
     Logger.debug(f'系统传参  {total}')
     
     if len(SelfAppIds) == 0:
-        res1 = find_use_appId_list(planId, num, total)
+        res1 = find_use_appId_list(planId, num, total, taskId, label_id)
 
         if res1.status_code != 200 or len(res1.json()['data']['list']['is_use_list']) == 0:
             gary_other_operation(planId, taskId)
-            res_data = select_appId(num, planId, label_id, culster_id)
+            res_data = select_appId(num, planId, label_id, taskId)
         else:
             res_data = res1.json()
             
@@ -39,7 +41,7 @@ def up_appId(taskId, num, SelfAppIds, planId, label_id, culster_id, environment)
         Logger.debug(f"本次可用名单为 {is_use_appId}  一共有{len(is_use_appId)}")
 
     else:
-        res_data = BySelfAppIds(planId, ','.join(i for i in SelfAppIds))
+        res_data = BySelfAppIds(planId, ','.join(i for i in SelfAppIds), label_id, taskId)
         missing_self_name = [v.split('-')[0] for item in res_data['data']['filter_list_by_plan'] for k, v in item.items() if k == 'err_msg']  # 获取完整的计划名称
         is_use_appId = res_data['data']['is_use_list']
         Logger.debug(f"本次可用名单为 {is_use_appId}  一共有{len(is_use_appId)}    {r.get(runner.redisKey)}")
@@ -81,7 +83,7 @@ def up_appId(taskId, num, SelfAppIds, planId, label_id, culster_id, environment)
             else:
                 return robot_smallCar({"msgtype": "markdown",
                                     "markdown": {
-                                        "content": f"{runner._get_plan_name()}   {environment}添加名单失败请关注{runner.develop}"
+                                        "content": f"{runner._get_plan_name()}   {environment}添加名单失败请关注!! 具体原因：{add_res_data['msg']}{runner.develop}"
                                     }}, runner.webHook), False
 
         addId(is_use_appId)
@@ -112,7 +114,17 @@ def get_whole_network_statu(yId, taskId, msg, tester, driver, webHook, PlanName)
     systems_list = res_data['data']['list']
     for i in systems_list:
         count = []
-        if any(v == 8 for k, v in i.get('release_patter', {}).items()):
+
+        if i.get('release_patter') is None:
+            condition = True
+        elif isinstance(i.get('release_patter'), dict):
+            condition = any(v == 8 for k, v in i.get('release_patter', {}).items())
+        elif isinstance(i.get('release_patter'), list):
+            condition = True
+        else:
+            condition = False
+
+        if condition:
             total += 1
         else:
             if isinstance(i['release_last_run'], list):
@@ -149,7 +161,16 @@ def get_upload_appId_system_statu(planId, taskId, msg, tester, driver, webHook, 
     systems_list = res_data['data']['list']
     for i in systems_list:
         count = []
-        if any(v == 8 for k, v in i.get('release_patter', {}).items()):
+        if i.get('release_patter') is None:
+            condition = True
+        elif isinstance(i.get('release_patter'), dict):
+            condition = any(v == 8 for k, v in i.get('release_patter', {}).items())
+        elif isinstance(i.get('release_patter'), list):
+            condition = True
+        else:
+            condition = False
+
+        if condition:
             total += 1
         else:
             if isinstance(i['release_last_run'], list):
@@ -238,3 +259,30 @@ def get_hit_probability(planId):
         content = '无'
         project_hit_rate = '无后端系统'
     return project_hit_rate, content
+
+
+def HadAppId(pid, taskId, env_name):
+    """获取已经发布了的AppId"""
+    if taskId.get(env_name):
+        success_count = sum(1 for app in ready_line(
+            taskId.get(env_name),
+            pid
+        )['data']['plan_content'] if app['publish_state'] == 1)
+        return success_count
+    else:
+        return 0
+    
+
+def judge_plan():
+    if r.get(RedisKeyManager().get_key('YesterdatPlanId')):
+        res = get_plan_detail(r.get(RedisKeyManager().get_key('YesterdatPlanId')))
+        Logger.debug(f"准现网计划详情{res.json()}")
+        if '计划不存在' in res.json()['msg']:
+            r.delete(r.get(RedisKeyManager().get_key('YesterdatPlanId')))
+
+    if r.get(RedisKeyManager().get_key('PlanId')):
+        res = get_plan_detail(r.get(RedisKeyManager().get_key('PlanId')))
+        if '计划不存在' in res.json()['msg']:
+            r.delete(RedisKeyManager().get_key('PlanId'))
+            r.set(RedisKeyManager().get_key('IsCreatePlan'), '0')
+    return r.get(RedisKeyManager().get_key('PlanId')), r.get(RedisKeyManager().get_key('YesterdatPlanId'))

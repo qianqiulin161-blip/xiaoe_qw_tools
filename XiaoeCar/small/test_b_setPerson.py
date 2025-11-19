@@ -3,10 +3,11 @@ import time
 import random
 from contextlib import suppress
 
+from common.Exception import catch_exception
+from common.RedisKey import RedisKeyManager
 from common.Small_Car_BaseInfo import smallConfig
 from common.Log import Logger
 from common.robot_api import smallCar_setPerson, smallCar_getDan
-import allure
 from common.RedisConfig import r
 
 
@@ -26,7 +27,7 @@ def _get_redis_data(key):
 # def test_setPerson():
 #     _cleanup_error_records()
     
-#     data1, result = _get_redis_data(smallConfig.department_config[0]), {}
+#     data1, result = _get_redis_data(RedisKeyManager().get_key('AllDan')), {}
 
 #     if not data1:
 #         Logger.debug("没有工单，不用设置测试人员")
@@ -96,10 +97,11 @@ def _get_redis_data(key):
 #     r.set(f"roundRobinIndex{one_type}", current_index + 1)  # 轮询位置+1
 
 
+@catch_exception(Logger)
 def test_setPerson():
     _cleanup_error_records()
-    data1 = _get_redis_data(smallConfig.department_config[0])
-    cache = ast.literal_eval(r.get(smallConfig.department_config[20]))
+    data1 = _get_redis_data(RedisKeyManager().get_key('AllDan'))
+    cache = ast.literal_eval(r.get(RedisKeyManager().get_key('PersonOfWeek')))
     for item in data1:
         # 判断工单是否有测试人员
         if item.get('tester_name'):
@@ -115,7 +117,7 @@ def test_setPerson():
 
 def _cleanup_error_records():
     """清理错误记录"""
-    error_id = sorted(set(_get_redis_data(smallConfig.department_config[2])))
+    error_id = sorted(set(_get_redis_data(RedisKeyManager().get_key('ColumnErrorId'))))
     Logger.debug(f"错误工单ERROR_ID: {error_id}")
     data = smallCar_getDan()
     res = [item for item in data for department in smallConfig.OrderType if department in item['department_id']]
@@ -124,7 +126,7 @@ def _cleanup_error_records():
         for idx in sorted(error_id, reverse=True):
             res.pop(idx) if idx < len(res) else None
     
-    r.delete(smallConfig.department_config[0])
-    r.set(smallConfig.department_config[0], str(res))
+    r.delete(RedisKeyManager().get_key('AllDan'))
+    r.set(RedisKeyManager().get_key('AllDan'), str(res))
     Logger.debug(f"最终工单状态: {res}")
     time.sleep(1)

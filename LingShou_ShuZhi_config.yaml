@@ -1,63 +1,26 @@
-- "Fa_findGongDan"
-- "Fa_error_toast_first"
-- "Fa_error_id"
-- "Fa_error_toast"
-- "Fa_all_planId"
-- "Fa_error_judge_done"
-- "Fa_allPlan"
-- "Fa_all_yet_planId"
-- "Fa_all_warn" # 记录计划中目前所有工单id 18
-- {
-  "0512-0518": [ "mintang","yanicyang","binqian" ],
-  "0519-0525": [ "sheawen","bingai","wulanliu" ],
-  "0526-0601": [ "xiaomengjiang","ackerlyzeng","jonyzheng" ],
-  "0602-0608": [ "xujunhe","yanicyang","perrygong" ],
-  "0609-0615": [ "xunliu","bingai","ansonchen" ],
-  "0616-0622": [ "zhiwenhe","ackerlyzeng","kimzheng" ],
-  "0623-0629": [ "brucezhang","yanicyang","binqian" ],
-  "0630-0706": [ "melissamei","bingai","wulanliu" ],
-  "0707-0713": [ "mintang","ackerlyzeng","jonyzheng" ],
-  "0714-0720": [ "sheawen","yanicyang","perrygong" ],
-  "0721-0727": [ "xiaomengjiang","bingai","ansonchen" ],
-  "0728-0803": [ "xujunhe","ackerlyzeng","kimzheng" ],
-  "0804-0810": [ "xunliu","yanicyang","binqian" ],
-  "0811-0817": [ "zhiwenhe","bingai","wulanliu" ],
-  "0818-0824": [ "brucezhang","ackerlyzeng","jonyzheng" ],
-  "0825-0831": [ "melissamei","yanicyang","perrygong" ],
-  "0901-0907": [ "mintang","bingai","ansonchen" ],
-  "0908-0914": [ "sheawen","ackerlyzeng","kimzheng" ],
-  "0915-0921": [ "xiaomengjiang","yanicyang","binqian" ],
-  "0922-0928": [ "xujunhe","bingai","wulanliu" ],
-  "0929-1005": [ "xunliu","ackerlyzeng","jonyzheng" ],
-  "1006-1012": [ "zhiwenhe","yanicyang","perrygong" ],
-  "1013-1019": [ "brucezhang","bingai","ansonchen" ],
-  "1020-1026": [ "melissamei","ackerlyzeng","kimzheng" ],
-  "1027-1102": [ "mintang","yanicyang","binqian" ],
-  "1103-1109": [ "sheawen","bingai","wulanliu" ],
-  "1110-1116": [ "xiaomengjiang","ackerlyzeng","jonyzheng" ],
-  "1117-1123": [ "xujunhe","yanicyang","perrygong" ],
-  "1124-1130": [ "xunliu","bingai","ansonchen" ],
-  "1201-1207": [ "zhiwenhe","ackerlyzeng","kimzheng" ],
-  "1208-1214": [ "brucezhang","yanicyang","binqian" ],
-  "1215-1221": [ "melissamei","bingai","wulanliu" ],
-  "1222-1228": [ "mintang","ackerlyzeng","jonyzheng" ],
-  "1229-0104": [ "sheawen","yanicyang","perrygong" ]
-}
-- "Fa_all_content" # 22
-- "Fa_remind" # 23
-- "Fa_all_yet_warn" # 25
-- "Fa_time_smallCar"
-- "Fa_is_judge_back"
-- "Fa_dan_count"
-- "Fa_apiSelfInfo"
-- "Fa_wholeNetwork"
-- "Fa_num_id" # 发布外灰名单的数量index 33
-- "Fa_ReadyEvn"
-- "Fa_PersonOfWeek" # 记录每周的时间和对应的测试、评审人员 20
-- 'Fa_driver' # 记录发车司机
-- 'Fa_yPerson' # 昨天的测试、评审、开发司机 22
-- 'Fa_uiSelfInfo'
-- 'Fa_runSelf' # 自动化运行tag 24
-- 'Fa_plan_content' # 存储计划内容 提醒下车回退代码 25
-- 'Fa_xiaoe_last_archive_time' # 记录全网时间以便计算1h后归档 26
-- 'Fa_oversea_num_id' # 记录海外发布外灰名单的数量index 27
+# 电商小车配置
+AllDan: "Fa_findGongDan" # key 存今天所有的小车单 0
+ColumnErrorToasted: "Fa_error_toast_first" # key 记录小车单内字段有问题且已提醒的单id 1
+ColumnErrorId: "Fa_error_id" # key 记录小车单内字段有问题不能加入计划的单id 2
+DanErrorToast: "Fa_error_toast" # 创建计划时记录加不进计划已提醒的小车单 3
+PlanId: "Fa_all_planId" # 存储当日小车计划id 4
+NOSystemError: "Fa_error_judge_done" # 存储计划中没有添加系统需要提醒的单 5
+IsCreatePlan: "Fa_allPlan" # 判断今天是否建了小车计划 6
+YesterdatPlanId: "Fa_all_yet_planId" # 昨日小车计划id 7
+AllDanId: "Fa_all_warn" # 存储允许全网的小车单Id 8
+ReviewPassId: "Fa_all_content" # 存储评审通过的小车单ID 10
+RemindTest: "Fa_remind" # 当日小车提醒了测试人员测试为1，否则为0 11
+TodayTime: "Fa_time_smallCar" # 记录当日时间 13
+DanNum: "Fa_dan_count" # 记录计划中小车单状态全为评审通过后的数量 15
+ApiInfo: "Fa_apiSelfInfo" # 接口自动化信息 16
+WholeNetworkReport: "Fa_wholeNetwork" # 记录每天发送全网报告 17
+OutsideGrayIndex: "Fa_num_id" # 发布外灰名单的索引 18
+EvnTag: "Fa_ReadyEvn" # 19
+PersonOfWeek: "Fa_PersonOfWeek" # 记录每周的时间和对应的测试、评审人员 20
+Driver: 'Fa_driver' # 记录发车司机 21
+YesterdayPersonofWeek: 'Fa_yPerson' # 昨天的测试、评审、开发司机 22
+UiInfo: 'Fa_uiSelfInfo' # ui自动化信息 23
+RunSelfTag: 'Fa_runSelf' # 自动化运行tag 24
+PlanContent: 'Fa_plan_content' # 存储计划内容 提醒下车回退代码 25
+LastArchiveTime: 'Fa_xiaoe_last_archive_time' # 记录全网时间以便计算1h后归档 26
+OverseaGrayIndex: 'Fa_oversea_num_id' # 记录海外发布外灰名单的数量index 27

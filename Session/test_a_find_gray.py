@@ -1,5 +1,6 @@
 import ast
 import re
+from common.Exception import catch_exception
 from common.Log import Logger
 from common.robot_api import find_gray_connect, get_gray_info, robot_smallCar, user_connect
 from datetime import datetime, timedelta
@@ -11,7 +12,7 @@ def lower_words(app_ids):
     return lower_appids
 
 
-def find_session():
+def find_session(chat_id):
     try:
         last_check_str = r.get("last_session_check_time")
         if last_check_str:
@@ -21,23 +22,23 @@ def find_session():
         
         current_year_month = datetime.now().strftime("%y%m")
         current_date = datetime.now()
+        Logger.debug(f'查找的时间范围为：{last_check_time}---{current_date}')
         
         if not current_year_month.isalnum() or len(current_year_month) != 4:
             raise ValueError(f"无效的表名后缀：{current_year_month}")
         
         table_name = f"t_chat_history_{current_year_month}"
-        chat_id = "wrtJxhBgAAcw3n7JRXxp8ylskbQ96-Vg"
         
         # SQL语句使用占位符（不同数据库占位符可能不同，如%s、?等，根据实际数据库调整）
         sql = f"""
-            SELECT from_user_name, msg_action, is_revoke, msg_show FROM {table_name} 
+            SELECT from_user_name, msg_action, is_revoke, msg_show, created_at FROM {table_name} 
             WHERE chat_id = %s 
               AND created_at BETWEEN %s AND %s 
             ORDER BY created_at DESC;
         """
         
         # 4. 用with管理数据库连接，确保自动关闭
-        with find_gray_connect as conn:
+        with find_gray_connect() as conn:
             with conn.cursor() as cursor:
                 # 执行参数化查询（将时间转换为数据库支持的字符串格式）
                 cursor.execute(
@@ -49,9 +50,9 @@ def find_session():
                 results = cursor.fetchall()
                 Logger.info(f"查询到的会话记录数：{results}")
         
-        # 5. 更新Redis中的上次检查时间（存储为str）
-        r.set("last_session_check_time", current_date.strftime("%Y-%m-%d %H:%M:%S"))
+        # (('刘金铎', 'send', 0, ''), ('刘金铎', 'send', 0, '老师，辛苦看下这个可以达成吗@阳花平 ', '2025-11-13 00:00:00'), ('刘金铎', 'send', 0, 'DORA Lab+apphqhtivg25573  ', '2025-11-13 00:00:00'), ('干紫维', 'send', 0, '小鹅通C群&白文涛医考课堂+appl2dizpfj6908 麻烦问一下这个评论是默认评论吗？这个评论可以隐藏吗？@floweryang(阳花平)  ', '2025-11-13 00:00:00'))
         return list(results)
+        
     
     except Exception as e:
         Logger.error(f"答疑群查询会话错误：{e}")
@@ -59,10 +60,10 @@ def find_session():
     
 
 # 确定需要查询的appid
-def process_sessions():
+def process_sessions(chat_id):
     # 取出字符串中appID的正则表达式
     pattern = r'app[a-zA-Z0-9]{10,20}'
-    sessions = find_session()
+    sessions = find_session(chat_id)
     all_informations = []
     one_app_ids = {}
     error_ids = []
@@ -72,12 +73,19 @@ def process_sessions():
     
     for idx, session in enumerate(sessions):
         Logger.info(f"处理会话记录：{session}")
-        if session[3] != '' and session[2] ==  0 and session[1] == "send":
-            appids = re.findall(pattern, session[3])
+        if "------" in session[3]:
+            msg = session[3].split("------")[-1]
+        else:
+            msg = session[3]
+
+        if msg != '' and session[2] ==  0 and session[1] == "send":
+            appids = re.findall(pattern, msg)
             lower_appids = list(set(lower_words(appids)))
 
             if appids:
                 one_app_ids[session[0]] = lower_appids
+                one_app_ids['created_at'] = session[4]
+                one_app_ids['msg'] = session[3]
                 all_informations.append(one_app_ids)
                 one_app_ids = {}
             else:
@@ -88,14 +96,15 @@ def process_sessions():
             continue
     for error_id in sorted(error_ids, reverse=True):
         del sessions[error_id]
-
+    
+    #[{'刘金铎': ['apphqhtivg25573'], 'created_at': time, 'msg': msg}, {'干紫维': ['appl2dizpfj6908'], 'created_at': time, 'msg': msg}]  [('刘金铎', 'send', 0, 'DORA Lab+apphqhtivg25573  ', time), ('干紫维', 'send', 0, '小鹅通C群&白文涛医考课堂+appl2dizpfj6908 麻烦问一下这个评论是默认评论吗？这个评论可以隐藏吗？@floweryang(阳花平)  ', time)]
     Logger.info(f"所有含有appid的会话记录：{all_informations}  {sessions}")
     return all_informations, sessions
 
 
 # 查询用户职位
-def position_session():
-    all_informations, sessions = process_sessions()
+def position_session(chat_id):
+    all_informations, sessions = process_sessions(chat_id)
     all_user_result = []
     error_ids = []
     if sessions is None:
@@ -122,13 +131,15 @@ def position_session():
     for error_id in sorted(error_ids, reverse=True):
         del all_informations[error_id]
         del sessions[error_id]
+
+    # [(('服务管家',),), (('服务管家',),)]  [{'刘金铎': ['apphqhtivg25573'], 'created_at': time, 'msg': msg, 'position': '服务管家'}, {'干紫维': ['appl2dizpfj6908'], 'created_at': time, 'msg': msg, 'position': '服务管家'}]  [('刘金铎', 'send', 0, 'DORA Lab+apphqhtivg25573  ', time), ('干紫维', 'send', 0, '小鹅通C群&白文涛医考课堂+appl2dizpfj6908 麻烦问一下这个评论是默认评论吗？这个评论可以隐藏吗？@floweryang(阳花平)  ', time)]
     Logger.info(f"所有用户职位查询结果：{all_user_result}  {all_informations}  {sessions}")
     return all_informations, sessions
 
 
 # 获取appid对应的灰度
-def get_appid_gray():
-    all_informations, sessions = position_session()
+def get_appid_gray(chat_id, webhook):
+    all_informations, sessions = position_session(chat_id)
     if len(all_informations) == 0:
         Logger.info("没有符合职位的会话记录")
         return
@@ -146,8 +157,8 @@ def get_appid_gray():
     for idx, info in enumerate(all_informations):
         for p in all_person:
             appids = info.get(p)
-            Logger.info(f"处理会话记录灰度：{info},   {appids}")
             if appids:
+                Logger.info(f"处理会话记录灰度：{info},   {appids}")
                 for appid in appids:
                     res = get_gray_info(appid)
                     Logger.info(f"查询到的appid灰度信息：{res}")
@@ -157,24 +168,23 @@ def get_appid_gray():
                         plan_id = res['data']['bus_plan_id'] 
                         link = f'https://ops.xiaoe-tools.com/#/xiaoe_bus/workplan/plan_details/{plan_id}'
                         plan_name = res['data']['bus_plan_name']
-                        msg = f"{appid}的灰度为：[{plan_name}]({link})"
-                        all_msg.append(msg)
+                        text = re.sub(r"[\n\r\t\x00-\x1F\x7F]", "", info.get("msg"))
+                        msg = f"检测到<font color='red'>{appid}</font>在计划[{plan_name}]({link})中,请及时确认！\n" + f"咨询管家：<font color='green'>{p}</font>\n" + f"咨询时间：{info.get('created_at')}\n" + f"消息内容：<font color='gray'>{text}</font>\n"
                         
                         if all_gray_dict:
                             for item in all_gray_dict:
-                                if plan_name == item['plan_name'] and appid not in item['app_ids']:
+                                if plan_name == item['plan_name']:
                                     item['plan_id'] = plan_id
                                     item['plan_name'] = plan_name
                                     item['app_ids'].append(appid)
                                     item['is_send'] = '0'
                                     item['time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    Logger.info(f"更新灰度记录：{all_gray_dict}")
+                                    Logger.info(f"更新灰度记录：{item}")
                                     is_recorded = True
+                                    final_msg = msg + f"近半小时反馈问题在该灰度的店铺有：<font color='red'>{','.join(f for f in list(set(item['app_ids'])))}</font>，请关注！"
+                                    all_msg.append(final_msg)
                                     break
-                                elif plan_name == item['plan_name'] and appid in item['app_ids']:
-                                    is_recorded = True
-                                    Logger.info(f"{appid}在灰度记录中已存在，无需新增")
-                                    break
+                                
                             if not is_recorded:
                                 all_gray_info['time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 all_gray_info['is_send'] = '0'
@@ -184,6 +194,9 @@ def get_appid_gray():
                                 all_gray_dict.append(all_gray_info)
                                 all_gray_info = {}
                                 Logger.info(f"新增灰度记录：{all_gray_dict}")  
+                                final_msg = msg + f"近半小时无反馈问题在该灰度的店铺"
+                                all_msg.append(final_msg)
+                                break
                         else:     
                             all_gray_info['time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                             all_gray_info['is_send'] = '0'
@@ -192,56 +205,37 @@ def get_appid_gray():
                             all_gray_info['app_ids'] = [appid]
                             all_gray_dict.append(all_gray_info)
                             all_gray_info = {}
-                            Logger.info(f"新增灰度记录：{all_gray_dict}")                            
-                                
+                            Logger.info(f"新增灰度记录：{all_gray_dict}")  
+                            final_msg = msg + f"近半小时无反馈问题在该灰度的店铺\n"
+                            all_msg.append(final_msg)     
+                            break                     
+                r.set("all_gray_dict", str(all_gray_dict))          
                 break
             else:
                 continue
 
-    r.set("all_gray_dict", str(all_gray_dict))
     if len(all_msg)>0:
-        total_msg = "\n".join(i for i in all_msg)
-        Logger.info(f"将要发送到群里的消息为：{total_msg}")
-        data = {
-            "msgtype": "markdown",
-            "markdown": {
-                "content": f"{total_msg}"
-            }
-        }
-        robot_smallCar(data, "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=78d70e72-2de0-4dfe-bf36-8d2e42df65b0")
-        gray_num()
-    else:
-        pass
-        
-    
-def gray_num():
-    all_gray_msg = []
-    if r.get("all_gray_dict"):
-        all_gray_dict = ast.literal_eval(r.get("all_gray_dict"))
-        Logger.info(f"所有灰度记录：{all_gray_dict}")
-        for item in all_gray_dict:
-            if item['is_send'] == '0' and len(item['app_ids']) >=2:
-                msg = f"管家反馈的问题中，店铺<font color='red'>**{','.join(i for i in item['app_ids'])}**</font>  在灰度-[{item['plan_name']}](https://ops.xiaoe-tools.com/#/xiaoe_bus/workplan/plan_details/{item['plan_id']})中, 请关注"
-                all_gray_msg.append(msg)
-                item['is_send'] = '1'
-        r.set("all_gray_dict", str(all_gray_dict))
-        
-        if len(all_gray_msg)>0:
-            total_msg = '\n'.join(i for i in all_gray_msg)
+        for msg in all_msg:
+            Logger.info(f"将要发送到群里的消息为：{msg}")
             data = {
-                    "msgtype": "markdown",
-                    "markdown": {
-                        "content": f"{total_msg}"
-                    }
+                "msgtype": "markdown",
+                "markdown": {
+                    "content": f"{msg}"
                 }
-            robot_smallCar(data, "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=78d70e72-2de0-4dfe-bf36-8d2e42df65b0")
-
-        else:
-            pass
-                
+            }
+            robot_smallCar(data, webhook)
     else:
         pass
 
 
+@catch_exception(Logger)
 def test_session():
-    get_appid_gray()
+    chat_ids = ["wrtJxhBgAAcw3n7JRXxp8ylskbQ96-Vg", "wrtJxhBgAAtYVO7_iQvyRlOJPaofSb4w","wrtJxhBgAAfJO4qr8l5axfcgVSKbrwtQ"]
+    webhook = ["https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=78d70e72-2de0-4dfe-bf36-8d2e42df65b0", "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=e456eff1-14f1-4e4c-bed4-57c074920833","https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=c8a70524-ee55-420b-a28f-acbbd3dda242"]
+   
+    for i in range(len(chat_ids)):
+        get_appid_gray(chat_ids[i], webhook[i])
+
+    current_date = datetime.now()
+    # 5. 更新Redis中的上次检查时间（存储为str）
+    r.set("last_session_check_time", current_date.strftime("%Y-%m-%d %H:%M:%S"))

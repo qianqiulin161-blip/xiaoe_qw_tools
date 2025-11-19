@@ -1,7 +1,6 @@
 import jwt
 import datetime
 import requests
-from tenacity import retry, stop_after_attempt, wait_fixed
 from common.robot_api import robot_smallCar
 from common.RedisConfig import r
 

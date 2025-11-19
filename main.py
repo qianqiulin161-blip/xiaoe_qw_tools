@@ -1,6 +1,32 @@
+import argparse
 import os
 from datetime import datetime
 import time
+
+
+# parser = argparse.ArgumentParser(description="自动拉群脚本")
+# parser.add_argument("--ISSUE_ID", type=str, help="工单ID")
+# parser.add_argument("--GRAY_FROM", type=str, help="灰度来源")
+# parser.add_argument("--COMPARE_GRAY", type=str, help="做比较的灰度")
+# parser.add_argument("--GROUP_URL", type=str, help="对应的webhook")
+# parser.add_argument("--Config", type=str, help="对应的配置")
+# parser.add_argument("--ISSUE_TAG", type=str, help="其他参数")
+# parser.add_argument("--ISSUE_OWNER_GROUP", type=str, help="另一个参数")
+# parser.add_argument("--WORKER", type=str, help="其他参数")
+
+# args = parser.parse_args()
+
+# os.environ["ISSUE_ID"] = args.ISSUE_ID
+# os.environ["GRAY_FROM"] = args.GRAY_FROM
+# os.environ["COMPARE_GRAY"] = args.COMPARE_GRAY
+# os.environ["GROUP_URL"] = args.GROUP_URL
+# os.environ["Config"] = args.Config
+# os.environ["ISSUE_TAG"] = args.ISSUE_TAG
+# os.environ["ISSUE_OWNER_GROUP"] = args.ISSUE_OWNER_GROUP
+# os.environ["WORKER"] = args.WORKER
+
+
+
 from common.RedisConfig import r
 from CreateGroup.test_a_MysqlDan import test_Mysql
 from CreateGroup.test_b_CheckKA_f import test_checkKA
@@ -42,6 +68,7 @@ if __name__ == '__main__':
 
         r.set("usingmonkey", "0")
         r.expire("usingmonkey", 129600)
+    time.sleep(3)
     test_Mysql()
     test_checkKA()
     test_getAllDan()

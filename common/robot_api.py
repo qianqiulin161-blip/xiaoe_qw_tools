@@ -8,6 +8,12 @@ from common.SendRequest import SendRequest
 import json
 from common.YamlUtil import read_yaml_special
 from jsonpath import jsonpath
+Logger.debug(f"makanaadfjas  {os.getenv('SeekOrdersTime')}")
+is_smallCar=False
+if os.getenv("SeekOrdersTime"):
+    from common.Small_Car_BaseInfo import smallConfig
+    is_smallCar=True
+
 # 建立连接对象
 connect = pymysql.connect(host='bj-cdb-h2jq1e4q.sql.tencentcdb.com', user='monitor_query',
                           password='6k13+j=#wyrk79ye', database='db_ex_tapd', port=61965)
@@ -15,22 +21,32 @@ connect = pymysql.connect(host='bj-cdb-h2jq1e4q.sql.tencentcdb.com', user='monit
 user_connect = pymysql.connect(host='bj-cdb-h2jq1e4q.sql.tencentcdb.com', user='monitor_query',
                                password='6k13+j=#wyrk79ye', database='db_user_center', port=61965)
 
-find_gray_connect = pymysql.connect(host='jumpserver.xiaoe-tools.com', user='706953de-b64b-4b1e-b5a1-9128914d02ec', 
-                                    password='MrgP35u2F6p1ftah', database='db_ex_robots_service', port=33061)
 
-AppId = os.getenv("AppId")
+def find_gray_connect():
+    return pymysql.connect(
+        host='jumpserver.xiaoe-tools.com', 
+        user='706953de-b64b-4b1e-b5a1-9128914d02ec', 
+        password='MrgP35u2F6p1ftah', 
+        database='db_ex_robots_service', 
+        port=33061
+        )
+        
+
 token = read_yaml_special('/token.yaml')
 
 # 班车系统不过期接口
-string = "ops_gateway:DVRRu7ytssydL4dYfR8TfdOxRaujCcoy"
-encoded_string = base64.b64encode(string.encode('utf-8'))
-headers = {'Authorization': 'Basic {}'.format(encoded_string.decode('utf-8')),
-           }
-if AppId is not None:
-    headers['Cookie'] = f'app_id={AppId}'
+def no_dead_line_time(enable_appid=False):
+    string = "ops_gateway:DVRRu7ytssydL4dYfR8TfdOxRaujCcoy"
+    encoded_string = base64.b64encode(string.encode('utf-8'))
+    headers = {'Authorization': 'Basic {}'.format(encoded_string.decode('utf-8')),
+            }
+    if is_smallCar:
+        if smallConfig.AppId is not None and enable_appid:
+            headers['Cookie'] = f'app_id={smallConfig.AppId}'
+    return headers
 
 
-def Header_allTheSame(planId):
+def Header_allTheSame(planId, enable_appid=False):
     Header = {
         "Cookie": f"sidebarStatus=0;ops_token={token[0]};",
         "content-type": f"application/json;charset=UTF-8",
@@ -38,12 +54,10 @@ def Header_allTheSame(planId):
         "redirect": f"/xiaoe_bus/workplan/plan_details/{planId}",
         "referer": "https://ops.xiaoe-tools.com/"
     }
-    if AppId is not None:
-        Header['Cookie'] += f'app_id={AppId}'
+    if is_smallCar:
+        if smallConfig.AppId is not None and enable_appid:
+            Header['Cookie'] += f'app_id={smallConfig.AppId}'  
     return Header
-
-
-Logger.debug(f'请求头数据：{headers},    {Header_allTheSame(1)}')
 
 
 def robot_similarity(data):
@@ -196,7 +210,7 @@ def in_plan(plan_id):
     data_back = {
         "plan_id": str(plan_id)
     }
-    res = SendRequest.all_send_request(url=url_back, method=method_back, headers=headers,
+    res = SendRequest.all_send_request(url=url_back, method=method_back, headers=no_dead_line_time(False),
                                        json=data_back,
                                        verify=False)
     print(res.json())
@@ -248,7 +262,7 @@ def get_plan_detail(planId):
     data = {
         'plan_id': planId,
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=headers, verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=no_dead_line_time(False), verify=False)
     return res
 
 
@@ -259,7 +273,7 @@ def get_in_plan_one_detail(real_id):
     one_data = {
         "iteration_id": real_id
     }
-    res = SendRequest.all_send_request(url=one_url, method=one_method, json=one_data, headers=headers,
+    res = SendRequest.all_send_request(url=one_url, method=one_method, json=one_data, headers=no_dead_line_time(False),
                                        verify=False)
     return res
 
@@ -288,7 +302,7 @@ def get_all_no_guiDang(is_finish, start_time, end_time, plan_name, creator):
         "end_date": end_time,
         "creator": creator
     }
-    res = SendRequest.all_send_request(url=url, method=method, headers=headers, json=data, verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, headers=no_dead_line_time(False), json=data, verify=False)
     plan_ids = []
     plan_names = []
     plan_owner = []
@@ -350,25 +364,21 @@ def robot_everyday(data):
 def smallCar_getDan():
     """环境变量中获取需要捞单的中心  并捞单"""
     try:
-        de = ast.literal_eval(os.getenv('department'))
-        iterationStage = ast.literal_eval(os.getenv('iterationStage'))
-        CodingOrderStage = ast.literal_eval(os.getenv('CodingOrderStage'))
-        filterConditions = ast.literal_eval(os.getenv("filterConditions"))
         end_res = []
-        for one in de:
+        for one in smallConfig.department_list:
             url = "https://openapi.xiaoe-tools.com/ops/xe.bs.iteration.get.list/1.0.0"
             method = "post"
             datas = {
                 "iteration_name": "",
                 "creator": "",
                 "iteration_leader": "",
-                "iteration_stage": iterationStage,
+                "iteration_stage": smallConfig.iterationStage,
                 "relative_project": "",
                 "production_at": "",
                 "project_id": "",
                 "department_id": one,
                 "iteration_type": 4,
-                "coding_order_stage": CodingOrderStage,
+                "coding_order_stage": smallConfig.CodingOrderStage,
                 "is_bind_plan": 0,
                 "product_line": "xiaoetong",
                 "page_index": 1,
@@ -378,26 +388,26 @@ def smallCar_getDan():
                 "iteration_name": "",
                 "creator": "",
                 "iteration_leader": "",
-                "iteration_stage": iterationStage,
+                "iteration_stage": smallConfig.iterationStage,
                 "relative_project": "",
                 "production_at": "",
                 "project_id": "",
                 "department_id": one,
                 "iteration_type": 1,
-                "coding_order_stage": CodingOrderStage,
+                "coding_order_stage": smallConfig.CodingOrderStage,
                 "is_bind_plan": 0,
                 "product_line": "xiaoetong",
                 "page_index": 1,
                 "page_size": 10
             }
-            res = SendRequest.all_send_request(method=method, url=url, json=datas, headers=headers, verify=False).json()
-            res3 = SendRequest.all_send_request(method=method, url=url, json=datas1, headers=headers,
+            res = SendRequest.all_send_request(method=method, url=url, json=datas, headers=no_dead_line_time(False), verify=False).json()
+            res3 = SendRequest.all_send_request(method=method, url=url, json=datas1, headers=no_dead_line_time(False),
                                                 verify=False).json()
             end_res = end_res + res['data']['list'] + res3['data']['list']
 
-            if len(filterConditions) != 0:
+            if len(smallConfig.filterConditions) != 0:
                 for idx, i in enumerate(end_res):
-                    for j in filterConditions:
+                    for j in smallConfig.filterConditions:
                         if j == i['creator']:
                             end_res.pop(idx)
                 final = end_res
@@ -424,7 +434,7 @@ def robot_smallCar(data, send_url):
 def smallCar_setPerson(data):
     url = "https://openapi.xiaoe-tools.com/ops/xe.bs.order.tester_bind/1.0.0"
     method = "post"
-    res = SendRequest.all_send_request(method=method, url=url, json=data, headers=headers, verify=False)
+    res = SendRequest.all_send_request(method=method, url=url, json=data, headers=no_dead_line_time(False), verify=False)
     return res
 
 
@@ -441,7 +451,7 @@ def smallCar_createPlan(plan_name, name, last_name, date, ids, department, auth)
         "auth_ids": auth,
         "devops_process_id": 10
     }
-    res = SendRequest.all_send_request(method=method, url=url, json=datas, headers=Header_allTheSame(""), verify=False)
+    res = SendRequest.all_send_request(method=method, url=url, json=datas, headers=Header_allTheSame("", False), verify=False)
     return res
 
 
@@ -453,7 +463,7 @@ def smallCar_addPlan(planId, ids):
         "plan_id": planId,
         "iteration_ids": ids
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res
 
 
@@ -467,7 +477,7 @@ def smallCar_findApply(planId):
         "page_index": 1,
         "page_size": 100
     }
-    res = SendRequest.all_send_request(url=url, method=method, params=params, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, params=params, headers=Header_allTheSame(planId, False), verify=False)
     return res
 
 
@@ -479,7 +489,7 @@ def smallCar_apply(planId, ids):
         "auth_ids": ids,
         "auth_status": 2
     }
-    res = SendRequest.all_send_request(url=url, method=method, headers=Header_allTheSame(planId), json=data, verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, headers=Header_allTheSame(planId, False), json=data, verify=False)
     return res
 
 
@@ -502,7 +512,7 @@ def do_jieKou(sj):
 def get_auth_meaasge():
     url = "https://ops.xiaoe-tools.com/ops/xe.bs.order.creator.list/1.0.0"
     method = "post"
-    res = SendRequest.all_send_request(url=url, method=method, headers=Header_allTheSame(""), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, headers=Header_allTheSame("", False), verify=False)
     return res.json()['data']
 
 
@@ -517,8 +527,8 @@ def change_base_plan(plan_id, plan_name, production_at, publish_type, auth_ids, 
         "production_at": production_at,
         "publish_type": publish_type,
         "auth_ids": auth_ids
-    }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(plan_id), verify=False)
+    }   
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(plan_id, False), verify=False)
     return res
 
 
@@ -543,7 +553,7 @@ def code_gary(app_id):
     data = {
         "id": app_id
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=headers, verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=no_dead_line_time(False), verify=False)
     return res.json()['data']['e_content']
 
 
@@ -579,7 +589,7 @@ def ready_line(task_id, planId):
         "label_ids": [],
         "publish_state": 100
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -590,7 +600,7 @@ def app_id_CodeGary(app_id):
     data = {
         "app_id": app_id
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=headers, verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=no_dead_line_time(False), verify=False)
     return res.json()
 
 
@@ -622,7 +632,7 @@ def environment(planId, devopsId):
         "is_skip": False,
         "plan_id": planId
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -653,29 +663,26 @@ def push_ready_appId(task_id):
     data = {
         "task_id": task_id
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=headers, verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=no_dead_line_time(False), verify=False)
     return res.json()
 
 
 # 根据接口查询可用小车准现网名单
-def find_use_appId_list(planId, count, systems):
-    url = "https://ops.xiaoe-tools.com/ops/xiaoe_shop_gray_service/gray_pool/shop/search/by_api/1.0.0"
+def find_use_appId_list(planId, count, systems, taskId, label_ids):
+    url = "https://ops.xiaoe-tools.com/ops/gray_setting/select_appid_by_api"
     method = "POST"
 
     data = {
-        "shop_num": count,
-        "plan_id": planId,
-        "label_ids": [131],
+        "count": count,
+        "label_ids": label_ids,
         "filter_label_ids": [
             104,
             20
         ],
-        "cluster_ids": ["xiaoetong-pro"],
-        "env": "pro",
-        "product_line": "xiaoetong",
+        "task_id": taskId,
         "reqs": systems
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, True), verify=False)
     return res
 
 
@@ -686,10 +693,10 @@ def recommend_appId(planId, systems):
 
     data = {
         "plan_id": planId,
-        "product_line": "xiaoetong",
-        "systems": systems
+        "systems": systems,
+        "cluster_manage_id": 1
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, True), verify=False)
     Logger.debug(f'推荐名单接口返回   {res.json()}')
     return res.json()
 
@@ -704,7 +711,7 @@ def gary_other_operation(planId, task_id):
         "task_id": task_id,
         "list": []
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -718,7 +725,7 @@ def add_appId(planId, task_id, gary_content):
         "gray_content": gary_content,
         "gray_way": 2
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     Logger.debug(f'添加外部名单结果   {res.json()}')
     return res.json()
 
@@ -734,7 +741,7 @@ def upload_appId(planId, task_id, systems_list):
         "task_id": task_id,
         "handle_type": "release"
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     Logger.debug(f'发布准现网外部名单结果   {res.json()}')
     return res.json()
 
@@ -747,7 +754,7 @@ def get_system_list(planId, task_id):
     data = {
         "task_id": task_id
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     Logger.debug(f'计划系统列表   {res.json()}')
     return [i['english_name'] for i in res.json()['data']['list']], [i['system_id'] for i in res.json()['data']['list']]
 
@@ -758,10 +765,10 @@ def get_hit(planId):
     method = "POST"
 
     data = {
-        "product_line": "xiaoetong",
+        "cluster_manage_id": 1,
         "plan_id": planId
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, True), verify=False)
     return res.json()
 
 
@@ -773,7 +780,7 @@ def get_the_whole_network_info(planId, taskId):
     data = {
         "task_id": taskId
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -788,7 +795,7 @@ def change_statue_end(planId, order_ids, completion_time):
         "plan_id": planId,
         "completion_time": completion_time
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -799,7 +806,7 @@ def back_plan(planId):
     data = {
         "plan_id": planId
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -809,11 +816,11 @@ def back_plan_another(planId):
     method = "POST"
 
     data = {
-        "product_line": "xiaoetong",
+        "cluster_manage_id": 1,
         "plan_status": "archived",
         "plan_id": planId
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, True), verify=False)
     return res.json()
 
 
@@ -856,7 +863,7 @@ def batch_create(planId, taskId, systemIds):
         "task_id": taskId,
         "system_ids": systemIds,
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -869,7 +876,7 @@ def batch_merge(planId, taskId, systemIds):
         "task_id": taskId,
         "system_ids": systemIds
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -882,7 +889,7 @@ def get_is_marge(planId, taskId):
         "task_id": taskId,
         "task_env": "bug"
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -897,127 +904,24 @@ def set_tag(planId, taskId, systemList):
         "all_sync": 1,
         "sync_task_ids": []
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
-
-
-# 获取codingUI自动化报告接口
-def getUIReport(UID, TaskNum):
-    url = f"https://xiaoe.coding.net/api/user/xiaoe/project/zidonghuaxiangmu/ci/job/{UID}/build/{TaskNum}/reports"
-    method = "Get"
-    Header = {
-        "Cookie": f"teamType=1_1_0; exp=89cd78c2; code=artifact-reforge%3Dfalse%2Casync-blocked%3Dtrue%2Cauth-by-wechat%3Dtrue%2Cci-qci%3Dfalse%2Cci-team-step%3Dfalse%2Cci-team-templates%3Dfalse%2Ccoding-flow%3Dfalse%2Ccoding-ocd-java%3Dfalse%2Ccoding-ocd-pages%3Dtrue%2Centerprise-permission-management%3Dtrue%2Cmobile-layout-test%3Dfalse%2Cproject-permission-management%3Dtrue%2Cservice-exception-tips%3Dfalse%2Ctencent-cloud-object-storage%3Dtrue%2C5b585a51; _pk_id.4.c189=9aa57baedc5bb7e0.1749441082.; _ga=GA1.1.226655824.1749723636; _ga_FVWC4GKEYS=GS2.1.s1749780221$o2$g1$t1749783287$j59$l0$h0; united=276f6616-c22f-415e-9387-6406df280f19; eid=075a0580-56ea-4f2f-b0e8-c4e0eb7b0960; enterprise_domain=xiaoe; c=auth-by-wechat%3Dtrue%2Cproject-permission-management%3Dtrue%2Centerprise-permission-management%3Dtrue%2C5c58505d; clientId=269a6ecf-ee6a-419e-8574-aa998bdb8fd2; XSRF-TOKEN=f6bbc40d-2cf3-48dc-bd34-e4d98f618a37; SameSite=Lax; cf=66ff89e5d0fe17ec799346bcc5377234; coding_demo_visited=1",
-        "referer": f"https://xiaoe.coding.net/p/zidonghuaxiangmu/ci/job?id={UID}"
-    }
-    res = SendRequest.all_send_request(url=url, method=method, headers=Header, verify=False)
-    return res.json()
-
-
-# 获取UI自动化执行内容
-def getUIDetail(UID):
-    url = f"https://xiaoe.coding.net/api/user/xiaoe/project/zidonghuaxiangmu/ci/job/{UID}/builds"
-    method = "Get"
-    Header = {
-        "Cookie": f"teamType=1_1_0; exp=89cd78c2; code=artifact-reforge%3Dfalse%2Casync-blocked%3Dtrue%2Cauth-by-wechat%3Dtrue%2Cci-qci%3Dfalse%2Cci-team-step%3Dfalse%2Cci-team-templates%3Dfalse%2Ccoding-flow%3Dfalse%2Ccoding-ocd-java%3Dfalse%2Ccoding-ocd-pages%3Dtrue%2Centerprise-permission-management%3Dtrue%2Cmobile-layout-test%3Dfalse%2Cproject-permission-management%3Dtrue%2Cservice-exception-tips%3Dfalse%2Ctencent-cloud-object-storage%3Dtrue%2C5b585a51; _pk_id.4.c189=9aa57baedc5bb7e0.1749441082.; _ga=GA1.1.226655824.1749723636; _ga_FVWC4GKEYS=GS2.1.s1749780221$o2$g1$t1749783287$j59$l0$h0; united=276f6616-c22f-415e-9387-6406df280f19; eid=075a0580-56ea-4f2f-b0e8-c4e0eb7b0960; enterprise_domain=xiaoe; c=auth-by-wechat%3Dtrue%2Cproject-permission-management%3Dtrue%2Centerprise-permission-management%3Dtrue%2C5c58505d; clientId=269a6ecf-ee6a-419e-8574-aa998bdb8fd2; XSRF-TOKEN=f6bbc40d-2cf3-48dc-bd34-e4d98f618a37; SameSite=Lax; cf=66ff89e5d0fe17ec799346bcc5377234; coding_demo_visited=1",
-        "referer": f"https://xiaoe.coding.net/p/zidonghuaxiangmu/ci/job?id={UID}"
-    }
-    Params = {
-        "page": 1,
-        "pageSize": 5,
-        "isMine": "false"
-    }
-    res = SendRequest.all_send_request(params=Params, url=url, method=method, headers=Header, verify=False)
-    return res.json()
-
-
-# 零售UI自动化
-def ui_self(UID, bot, peo):
-    username = 'pt9uyki6zzpt'
-    password = 'c7bb9977876a7a60e0f38a290a715f867e593652'
-    url = f"https://xiaoe.coding.net/api/cci/job/{UID}/trigger"
-    method = "post"
-    header = {
-        "Content-Type": "application/json"
-    }
-    data = {
-        "ref": "master",
-        "envs": [
-            {
-                "name": "bot_url",
-                "value": bot,
-                "sensitive": 0
-            },
-            {
-                "name": "environment",
-                "value": "bug",
-                "sensitive": 0
-            },
-            {
-                "name": "contact",
-                "value": peo,
-                "sensitive": 0
-            }
-        ]
-    }
-    SendRequest.all_send_request(url=url, auth=(username, password), method=method, json=data, headers=header,
-                                 verify=False)
-
-
-# 圈子准现网ui自动化
-def cycle_ui():
-    username = 'pteto51o16nn'
-    password = '12e7045e91ef48a37ea13b240cba57a6854e8bb8'
-    url = "https://xiaoe.coding.net/api/cci/job/2792399/trigger"
-    method = "post"
-    header = {
-        "Content-Type": "application/json"
-    }
-    data = {
-        "ref": "master",
-        "envs": [
-            {
-                "name": "bot_url",
-                "value": "f6066e23-0591-48a7-9b19-d22dd41b00d9",
-                "sensitive": 0
-            },
-            {
-                "name": "environment",
-                "value": "bug",
-                "sensitive": 0
-            },
-            {
-                "name": "contact",
-                "value": "<@zorohuang><@haideeye><@stephenxiao><@miraclesong>",
-                "sensitive": 0
-            },
-            {
-                "name": "phones",
-                "value": "15507534276,17817280527,18814480943",
-                "sensitive": 0
-            }
-        ]
-    }
-    SendRequest.all_send_request(url=url, auth=(username, password), method=method, json=data, headers=header,
-                                 verify=False)
 
                             
 # 根据名单自行添加名单
-def BySelfAppIds(planId, appIds):
-    url = "https://ops.xiaoe-tools.com/ops/xiaoe_shop_gray_service/gray_pool/get_gray_pool_by_user/1.0.0"
+def BySelfAppIds(planId, appIds, label_ids, taskId):
+    url = "https://ops.xiaoe-tools.com/ops/gray_setting/select_appid"
     method = "POST"
     data = {
         "app_ids": appIds,
-        "label_ids": [131],
+        "label_ids": label_ids,
         "filter_label_ids": [
             104,
             20
         ],
-        "env": "pro",
-        "product_line": "xiaoetong",
-        "gray_env": "bug",
-        "cluster_ids": ["xiaoetong-pro"]
+        "task_id": taskId
     }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, True), verify=False)
     Logger.debug(f'自动添加自动化名单结果   {res.json()}')
     return res.json()
 
@@ -1032,7 +936,7 @@ def delAppId(taskId, appIds, planId):
             "type": 0
             }
     
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -1045,7 +949,6 @@ def DODelAPPID(taskId, planId, appIds):
         res_data = get_the_whole_network_info(planId, taskId)
         systems_list = res_data['data']['list']
         for i in systems_list:
-                systems_id = []
                 if any(v == 8 for k, v in i.get('release_patter', {}).items()):
                     pass
                 else:
@@ -1065,7 +968,7 @@ def build_type(systems, planId):
             "list": systems
             }
     
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -1078,7 +981,7 @@ def componentInfo(planId, taskId):
             "step_type": "front_config"
             }
     
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -1092,7 +995,7 @@ def configInfo(planId, taskId):
             "step_type": "config"
             }
     
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -1105,7 +1008,7 @@ def SQLInfo(planId, taskId):
             "step_type": "db"
             }
     
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
@@ -1118,29 +1021,23 @@ def taskInfo(planId, taskId):
             "step_type": "task"
             }
     
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, False), verify=False)
     return res.json()
 
 
-def select_appId(number, planId, label_id, culster_id):
-    url = "https://ops.xiaoe-tools.com/ops/xiaoe_shop_gray_service/gray_pool/select_appid/1.0.0"
+def select_appId(number, planId, label_id, taskId):
+    url = "https://ops.xiaoe-tools.com/ops/gray_setting/select_appid_by_label"
     method = "POST"
     data = {
-            "label_ids": [
-                label_id
-            ],
+            "label_ids": label_id,
             "filter_label_ids": [
                 104,
                 20
             ],
             "count": number,
-            "env": "pro",
-            "product_line": "xiaoetong",
-            "cluster_ids": [
-                culster_id
-            ]
+            "task_id": taskId
             }
-    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId), verify=False)
+    res = SendRequest.all_send_request(url=url, method=method, json=data, headers=Header_allTheSame(planId, True), verify=False)
     return res.json()
 
 
@@ -1201,3 +1098,26 @@ def get_gray_info(app_id):
     }
     res = SendRequest.all_send_request(url=url, method='POST', json=json_body, headers=headers, verify=False)
     return res.json()
+
+
+# ui自动化调用
+def ui_self(repoUrl, scriptParams, environment, wechatToken, contact, planName):
+    scriptParams_value = {"零售": "-m \"main\" --reruns 1 --reruns-delay 5", "助学": "-m \"P0 or main\" --reruns 2 --reruns-delay 35 --proxy=$proxy", "课程": "-m \"P0 or main\" --skin_version 2 -n 2 --reruns 1 --reruns-delay 65"}
+    url = "http://xiaoe-test-tools-service-master.xiaoe-test-tools-service.svc.cluster.local/celery/run_job"
+    method = "post"
+    data = {
+            "job_name": "ui-autotest",
+            "is_param": True,
+            "params": {
+                "repoUrl": repoUrl,
+                "branch": "master",
+                "scriptParams": scriptParams_value.get(scriptParams),
+                "pipelineBranch": "master",
+                "environment": environment,
+                "wechatToken": wechatToken,
+                "contact": contact,
+                "proxy": "false",
+                "planName": planName
+            }
+            }
+    SendRequest.all_send_request(url=url, method=method, json=data, headers={"Content-Type": "application/json"}, verify=False)

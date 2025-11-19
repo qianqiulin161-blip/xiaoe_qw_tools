@@ -1,12 +1,12 @@
 import ast
-import logging
+from common.Exception import catch_exception
+from common.RedisKey import RedisKeyManager
 import re
 from typing import Dict, List
 from common.RedisConfig import r
 from common.Small_Car_BaseInfo import smallConfig
 from common.Log import Logger
 from common.robot_api import smallCar_getDan, robot_smallCar, get_in_plan_one_detail,  GetUserId
-import allure
 
 # 判断的标题有哪些
 title = ["1.项目影响范围（说明项目影响的功能/模块，涉及内容输入需接入内容审核组件【对接人：朱开发】）",
@@ -47,13 +47,13 @@ def _check_self_test(content: str) -> bool:
     return True if len(content) > 15 else False
 
 
-@allure.title("判断工单填写的内容是否符合要求")
+@catch_exception(Logger)
 def test_judgeContent():
     # 移除之前符合要求的小车单，设置新的符合要求的小车单
     data = smallCar_getDan()
     raw_data = [item for item in data for department in smallConfig.OrderType if department in item['department_id']]
-    r.set(smallConfig.department_config[0], str(raw_data))
-    r.persist(smallConfig.department_config[0])
+    r.set(RedisKeyManager().get_key('AllDan'), str(raw_data))
+    r.persist(RedisKeyManager().get_key('AllDan'))
     Logger.debug(f"查询出的所有小车工单：{raw_data}")
 
     # 内容有问题需要发消息提醒的单id
@@ -61,7 +61,7 @@ def test_judgeContent():
     # 记录已经提醒过的问题id
     new_error_done = []
     # 查出已发送问题提醒的单
-    error_done = _get_cached_data(smallConfig.department_config[1])
+    error_done = _get_cached_data(RedisKeyManager().get_key('ColumnErrorToasted'))
     Logger.debug(f"判断小车工单又不符合捞单规定且提醒过的单：  {error_done}")
 
     if len(raw_data) == 0:
@@ -136,5 +136,5 @@ def test_judgeContent():
             robot_smallCar(_create_message(name, url1, '\n'.join(t for t in titles), creator,
                                            "工单内容描述简单，请完善"), smallConfig.robotWebHook)
             
-    r.set(smallConfig.department_config[1], str(new_error_done))
-    r.set(smallConfig.department_config[2], str(error_id))
+    r.set(RedisKeyManager().get_key('ColumnErrorToasted'), str(new_error_done))
+    r.set(RedisKeyManager().get_key('ColumnErrorId'), str(error_id))

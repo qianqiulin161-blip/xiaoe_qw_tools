@@ -3,6 +3,7 @@ import datetime
 import logging
 import os
 from common import robot_api
+from common.Exception import catch_exception
 from common.Log import Logger
 from common.robot_api import GetUserId, get_all_no_guiDang, get_current_owner, other_group
 from common.YamlUtil import read_yaml_special
@@ -21,9 +22,6 @@ def generate_group_name(time, group, type_dan, gary, all_gary, group_name, belon
     
     elif type_dan == "加急":
         prefix = f"[S-{belong_bu}]"
-    
-    elif type_dan == "紧急" and "公域业务组" in group:
-        prefix = f"[公域-{belong_bu}]"
 
     else:
         prefix = f"[A-{belong_bu}]"
@@ -196,154 +194,154 @@ def send_notification(send_name, Name,number, name):
     robot_api.robot_app({"msgtype": "markdown", "markdown": markdown})
 
 
+@catch_exception(Logger)
 def test_getAllDan():
-    try:
-        # 查询所有计划灰度
-        plans = get_all_no_guiDang(0, "", "", "教培产品", "")
-        all_gary = plans[1]
-        Logger.debug(f"所有教培的项目灰度为：  {all_gary}")
+    # 查询所有计划灰度
+    
+    plans = get_all_no_guiDang(0, "", "", "教培产品", "")
+    all_gary = plans[1]
+    Logger.debug(f"所有教培的项目灰度为：  {all_gary}")
 
-        # 项目助手中的工单id
-        dan_id = os.getenv("ISSUE_ID")
-        Logger.debug(f"新建工单id为：  {dan_id}\n")
+    # 项目助手中的工单id
+    dan_id = os.getenv("ISSUE_ID")
+    Logger.debug(f"新建工单id为：  {dan_id}\n")
 
-        # 项目助手中的灰度信息
-        gary1 = os.getenv("GRAY_FROM")
-        Logger.debug(f"工单灰度：  {gary1}\n")
+    # 项目助手中的灰度信息
+    gary1 = os.getenv("GRAY_FROM")
+    Logger.debug(f"工单灰度：  {gary1}\n")
 
-        # 获取标签
-        tag = os.getenv("ISSUE_TAG")
-        Logger.debug(f"工单标签：  {tag}\n")
+    # 获取标签
+    tag = os.getenv("ISSUE_TAG")
+    Logger.debug(f"工单标签：  {tag}\n")
 
-        # 获取问题处理所属中心
-        group = os.getenv("ISSUE_OWNER_GROUP")
-        Logger.debug(f"工单处理人所属小组：  {group}\n")
+    # 获取问题处理所属中心
+    group = os.getenv("ISSUE_OWNER_GROUP")
+    Logger.debug(f"工单处理人所属小组：  {group}\n")
 
-        # 查询出redis中的差异单的数据，类型为string
-        dan = ast.literal_eval(r.get('diff'))
+    # 查询出redis中的差异单的数据，类型为string
+    dan = ast.literal_eval(r.get('diff'))
 
-        if len(dan or []) != 0:
+    if len(dan or []) != 0:
 
-            # 循环查询出每一个工单信息
-            for item in dan:
+        # 循环查询出每一个工单信息
+        for item in dan:
 
-                if item == '1':
-                    continue
+            if item == '1':
+                continue
 
-                # 将string类型转换为list类型
-                real_dan = ast.literal_eval(item)
-                Logger.debug(f"正在进行判断拉群的工单：   {real_dan}")
+            # 将string类型转换为list类型
+            real_dan = ast.literal_eval(item)
+            Logger.debug(f"正在进行判断拉群的工单：   {real_dan}")
 
-                # 工单id
-                code = str(real_dan[0])
-                Logger.debug(f"正在进行判断拉群工单code为：{code}")
+            # 工单id
+            code = str(real_dan[0])
+            Logger.debug(f"正在进行判断拉群工单code为：{code}")
 
-                # 工单名称
-                groupName = real_dan[1]
+            # 工单名称
+            groupName = real_dan[1]
 
-                # 创建人
-                tiDan = str(real_dan[4])
+            # 创建人
+            tiDan = str(real_dan[4])
 
-                # 店铺提单数
-                number = real_dan[8]
+            # 店铺提单数
+            number = real_dan[8]
 
-                # 工单紧急状态
-                typeDan = str(real_dan[3])
+            # 工单紧急状态
+            typeDan = str(real_dan[3])
 
-                # 缺陷类型
-                bugType = real_dan[6]
+            # 缺陷类型
+            bugType = real_dan[6]
 
-                app_id = real_dan[5]
+            app_id = real_dan[5]
 
-                # 工单提单人
-                submit_person = real_dan[7]
+            # 工单提单人
+            submit_person = real_dan[7]
 
-                # 工单处理人
-                do_people_list = str(real_dan[2])
+            # 工单处理人
+            do_people_list = str(real_dan[2])
 
-                # 拼接工单链接
-                link = "https://xiaoe.coding.net/p/xianwangjishugongdan/bug-tracking/issues/" + code + "/detail"
-
+            # 拼接工单链接
+            link = "https://xiaoe.coding.net/p/xianwangjishugongdan/bug-tracking/issues/" + code + "/detail"
+            
+            if gary1:
                 send_msg_to_other_group(gary1, link, groupName)
 
-                # 获取service_people
-                if group is None or group == '':
-                    service_people = read_yaml_special("/scrm_service_people.yaml")
-                    group = "AIO平台中心"
-                elif '教培产品中心' in group:
-                    service_people = read_yaml_special("/service_people.yaml")
-                elif 'AIO平台中心' in group:
-                    service_people = read_yaml_special("/scrm_service_people.yaml")
-                
+            # 获取service_people
+            if group is None or group == '':
+                service_people = read_yaml_special("/scrm_service_people.yaml") + read_yaml_special("/service_people.yaml")
+                group = "AIO平台中心"
+            elif '教培产品中心' in group:
+                service_people = read_yaml_special("/service_people.yaml")
+            elif 'AIO平台中心' in group:
+                service_people = read_yaml_special("/scrm_service_people.yaml")
+            
 
-                if tag:
-                    if tag == "出海":
-                        service_people += ['phoebefang(方静丽)', 'jacobli(李杨)', 'reesezhang(张继章)', 'ryankuang(邝锐聪)', 'alicehu(胡思婷)', 'cicizeng(曾清明)', 'tracyliu(刘敏珊)', 'xiaoyujiang(江小鱼)', 'wadezhang(张伟)', 'rongzhuangwu(吴荣壮)', 'zeecoli(李显鹏)', 'veegeehong(洪丽丽)', 'larakichen(陈嘉琪)', 'caciquefeng(冯玥茜)', 'bettychen(陈可璇)', 'vinceyu(喻千里)', 'cclin(林丹红)', 'serenaxiang(向云霞)']
-                    else:
-                        pass    
-                Logger.debug(f"service_people_first为{service_people}")
-
-
-                # 查询代码级灰度
-                codeGary = part_gary(code, app_id, groupName, link)
-
-                # 创建人、客户经理、处理人
-                res, creator, name, service_people = get_creator_UserProcess_doPerson(app_id, groupName, tiDan,
-                                                                                      service_people,
-                                                                                      do_people_list, submit_person)
-                # 需要@的人
-                mentionPerson = []
-                if res != "无客户经理":
-                    mentionPerson.append(res)
-                if creator != "Api创建":
-                    mentionPerson.append(creator)
-                if name != ["无处理人"]:
-                    mentionPerson.extend(name)                
-                Logger.debug(f'需要@的人有： {mentionPerson}')
-
-                # 计划灰度
-                gary = get_gary(code, dan_id, gary1, groupName, link)
-
-                time = datetime.datetime.now().date().strftime("%m-%d")
-                
-                # 获取工单BU
-                belong_bu = get_current_owner(groupName)
-
-                # 群名
-                Name = generate_group_name(time, group, typeDan, gary, all_gary, groupName, belong_bu)
-
-                # 发送的第一条消息
-                first_msg = first_message(name, groupName, link, typeDan, creator, res, gary, codeGary,
-                                          number, belong_bu)
-
-                # 查redis中已经拉群数据
-                all_dan = r.lrange('is_create', 0, -1)
-                r.ttl("is_create")
-
-                # 判断该单是否已拉群
-                if code in all_dan:
-                    dd = 1
+            if tag:
+                if tag == "出海":
+                    service_people += ['phoebefang(方静丽)', 'jacobli(李杨)', 'reesezhang(张继章)', 'ryankuang(邝锐聪)', 'alicehu(胡思婷)', 'cicizeng(曾清明)', 'tracyliu(刘敏珊)', 'xiaoyujiang(江小鱼)', 'wadezhang(张伟)', 'rongzhuangwu(吴荣壮)', 'zeecoli(李显鹏)', 'veegeehong(洪丽丽)', 'larakichen(陈嘉琪)', 'caciquefeng(冯玥茜)', 'bettychen(陈可璇)', 'vinceyu(喻千里)', 'cclin(林丹红)', 'serenaxiang(向云霞)']
                 else:
-                    dd = 0
-                Logger.debug(f"dd={dd}   判断是否已拉群  dd=1为已拉群，dd=0为未拉群")
+                    pass    
+            Logger.debug(f"service_people_first为{service_people}")
 
-                if dd == 0 and (gary in all_gary or typeDan == "加急" or ("公域" in group and typeDan == "紧急")):
-                    res = robot_api.new_create_group(int(code), Name, first_msg, service_people, mentionPerson)
-                    Logger.debug(res.json())
-                    r.rpush("is_create", code)
-                elif dd == 0 and 'AIO平台中心' in group:
-                    res = robot_api.new_create_group(int(code), Name, first_msg, service_people, mentionPerson)
-                    Logger.debug(res.json())
-                    r.rpush("is_create", code)
-                elif dd == 0 and tag == "出海":
-                    res = robot_api.new_create_group(int(code), Name, first_msg, service_people, mentionPerson)
-                    Logger.debug(res.json())
-                    r.rpush("is_create", code)
-                else:
-                    Logger.debug(f"{groupName}   已经拉群了")
-                send_inter_msg(bugType, typeDan, gary, all_gary, group, Name, number, name)
-    except Exception as e:
-        Logger.error(f"异常：{e}")
+
+            # 查询代码级灰度
+            codeGary = part_gary(code, app_id, groupName, link)
+
+            # 创建人、客户经理、处理人
+            res, creator, name, service_people = get_creator_UserProcess_doPerson(app_id, groupName, tiDan,
+                                                                                    service_people,
+                                                                                    do_people_list, submit_person)
+            # 需要@的人
+            mentionPerson = []
+            if res != "无客户经理":
+                mentionPerson.append(res)
+            if creator != "Api创建":
+                mentionPerson.append(creator)
+            if name != ["无处理人"]:
+                mentionPerson.extend(name)                
+            Logger.debug(f'需要@的人有： {mentionPerson}')
+
+            # 计划灰度
+            gary = get_gary(code, dan_id, gary1, groupName, link)
+
+            time = datetime.datetime.now().date().strftime("%m-%d")
+            
+            # 获取工单BU
+            belong_bu = get_current_owner(groupName)
+
+            # 群名
+            Name = generate_group_name(time, group, typeDan, gary, all_gary, groupName, belong_bu)
+
+            # 发送的第一条消息
+            first_msg = first_message(name, groupName, link, typeDan, creator, res, gary, codeGary,
+                                        number, belong_bu)
+
+            # 查redis中已经拉群数据
+            all_dan = r.lrange('is_create', 0, -1)
+            r.ttl("is_create")
+
+            # 判断该单是否已拉群
+            if code in all_dan:
+                dd = 1
+            else:
+                dd = 0
+            Logger.debug(f"dd={dd}   判断是否已拉群  dd=1为已拉群，dd=0为未拉群")
+
+            if dd == 0 and (gary in all_gary or typeDan == "加急"):
+                res = robot_api.new_create_group(int(code), Name, first_msg, service_people, mentionPerson)
+                Logger.debug(res.json())
+                r.rpush("is_create", code)
+            elif dd == 0 and 'AIO平台中心' in group:
+                res = robot_api.new_create_group(int(code), Name, first_msg, service_people, mentionPerson)
+                Logger.debug(res.json())
+                r.rpush("is_create", code)
+            elif dd == 0 and tag == "出海":
+                res = robot_api.new_create_group(int(code), Name, first_msg, service_people, mentionPerson)
+                Logger.debug(res.json())
+                r.rpush("is_create", code)
+            else:
+                Logger.debug(f"{groupName}   已经拉群了")
+            send_inter_msg(bugType, typeDan, gary, all_gary, group, Name, number, name)
 
 
 # 发送消息到其它的群聊

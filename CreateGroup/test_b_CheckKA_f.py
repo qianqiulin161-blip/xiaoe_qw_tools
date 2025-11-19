@@ -2,6 +2,7 @@ import ast
 import logging
 
 from common import robot_api
+from common.Exception import catch_exception
 from common.Log import Logger
 from common.RedisConfig import r
 
@@ -9,7 +10,7 @@ def test_checkKA():
         alone(r.lrange('allDan', 0, -1))
         
 
-
+@catch_exception(Logger)
 def alone(dan):
     if r.get("set") == "0":
         ids = set([ast.literal_eval(item)[0] for item in dan])

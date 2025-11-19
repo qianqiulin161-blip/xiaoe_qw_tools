@@ -1,14 +1,17 @@
 import logging
 
+from common.Exception import catch_exception
+from common.RedisKey import RedisKeyManager
 from common.Small_Car_BaseInfo import smallConfig
 from common.robot_api import smallCar_findApply, smallCar_apply
 from common.Log import Logger
 from common.RedisConfig import r
 
 
-def test_shouQuan():
+@catch_exception(Logger)
+def test_shouQuan(pid, ypid):
     # 版本1.0启用
-    plan_ids = [str(r.get(smallConfig.department_config[4])), str(r.get(smallConfig.department_config[7]))]
+    plan_ids = [str(pid), str(ypid)]
 
     valid_plan_ids = [plan_id for plan_id in plan_ids if plan_id != 'None']
 

@@ -1,4 +1,6 @@
 import ast
+from common.Exception import catch_exception
+from common.RedisKey import RedisKeyManager
 from common.Small_Car_BaseInfo import smallConfig
 from common.Log import Logger
 from XiaoeCar.same.at_person import at, at_tester, at_driver, at_tester_Id, at_driver_Id
@@ -79,7 +81,7 @@ def _handle_successful_plan(res_data, yaml, iteration_id):
     """处理成功创建的计划"""
     plan_id = res_data['data']['plan_id']
     r.set(yaml, "1")
-    r.set(smallConfig.department_config[4],str(plan_id))
+    r.set(RedisKeyManager().get_key('PlanId'),str(plan_id))
     Logger.debug(f"{iteration_id}为正常迭代创建计划成功")
     return plan_id
 
@@ -134,7 +136,7 @@ def create_plan(ids, auth, name, yaml, lucky_person, lucky_name, lucky_url, peop
     plan_id, bad_ids, new_errors, only_create_tag = None, [], [], 0
     date_str = datetime.now().strftime("%Y-%m-%d")
     plan_name = datetime.now().strftime("%y%m%d")
-    error_done = ast.literal_eval(r.get(smallConfig.department_config[3]) or "[]")
+    error_done = ast.literal_eval(r.get(RedisKeyManager().get_key('DanErrorToast')) or "[]")
 
     for idx, i in enumerate(ids):
         res_data = _attempt_create_plan(plan_name, name, date_str, i, auth)
@@ -158,7 +160,7 @@ def create_plan(ids, auth, name, yaml, lucky_person, lucky_name, lucky_url, peop
                 new_errors = _process_error(i, "makePlan", error_done, new_errors,
                                 res_data.get('msg'), content, at)
                 bad_ids.append(idx)
-    r.set(smallConfig.department_config[3], str(new_errors))
+    r.set(RedisKeyManager().get_key('DanErrorToast'), str(new_errors))
 
     # 清理错误数据
     # 遍历包含多个列表的集合，依次对每个列表进行删除操作
@@ -176,14 +178,14 @@ def create_plan(ids, auth, name, yaml, lucky_person, lucky_name, lucky_url, peop
         elif only_create_tag == 1:
             Logger.debug(f'只提醒创建计划成功工单')
             robot_smallCar(_build_plan_content(plan_id, "", ([success_create_info[0]], [success_create_info[3]], [success_create_info[1]], [success_create_info[2]])), smallConfig.robotWebHook)
-        r.set(smallConfig.department_config[3], str(final_new_error))
+        r.set(RedisKeyManager().get_key('DanErrorToast'), str(final_new_error))
          
     return plan_id
 
 
 def add_to_plan(ids, name, lucky_person, lucky_name, lucky_url, people, planId):
     error_id, new_error_done = [], []
-    error_done = ast.literal_eval(r.get(smallConfig.department_config[3]) if r.get(smallConfig.department_config[3]) else "[]")
+    error_done = ast.literal_eval(r.get(RedisKeyManager().get_key('DanErrorToast')) if r.get(RedisKeyManager().get_key('DanErrorToast')) else "[]")
     Logger.debug(f"创建计划时有问题已提醒的单：  {error_done}")
     for index, i in enumerate(ids):
         # 添加迭代进计划接口
@@ -200,7 +202,7 @@ def add_to_plan(ids, name, lucky_person, lucky_name, lucky_url, people, planId):
                             content, at)
             error_id.append(index)
 
-    r.set(smallConfig.department_config[3], str(new_error_done))
+    r.set(RedisKeyManager().get_key('DanErrorToast'), str(new_error_done))
      
     data_info = _clean_error_data([ids, lucky_person, lucky_name, lucky_url, people], error_id)
 
@@ -210,7 +212,7 @@ def add_to_plan(ids, name, lucky_person, lucky_name, lucky_url, people, planId):
 
 def judgeSystem(pId):
     new_error_done = []
-    error_done = ast.literal_eval(r.get(smallConfig.department_config[5])) if r.get(smallConfig.department_config[5]) else []
+    error_done = ast.literal_eval(r.get(RedisKeyManager().get_key('NOSystemError'))) if r.get(RedisKeyManager().get_key('NOSystemError')) else []
     if pId:
         res = in_plan(pId)
         if res.json()["data"]['list']:
@@ -236,11 +238,12 @@ def judgeSystem(pId):
                     Logger.debug("yes system")
         else:
             Logger.debug("系统检查失败！！！\n")
-        r.set(smallConfig.department_config[5], str(new_error_done))
+        r.set(RedisKeyManager().get_key('NOSystemError'), str(new_error_done))
     else:
         Logger.debug("无法检查系统")
 
 
+@catch_exception(Logger)
 def test_makePlan():
     all_ids, all_luck, all_url, all_name, all_creator = [], [], [], [], []
     # 获取当前时间
@@ -255,10 +258,10 @@ def test_makePlan():
     test_judgeContent()
     test_setPerson()
 
-    dan_data1 = ast.literal_eval(r.get(smallConfig.department_config[0]) or "[]")
+    dan_data1 = ast.literal_eval(r.get(RedisKeyManager().get_key('AllDan')) or "[]")
     Logger.debug(f"捞单存储结果为：{dan_data1}")
     # 版本1.0启用
-    allPlan = r.get(smallConfig.department_config[6])
+    allPlan = r.get(RedisKeyManager().get_key('IsCreatePlan'))
 
     # 查找所有工单信息
     if dan_data1:
@@ -271,17 +274,17 @@ def test_makePlan():
         Logger.debug(f"捞单结果为：{all_ids}  {all_luck}  {all_url}  {all_name}  {all_creator}")
         if allPlan == '0':
             AuthorizePerson = smallConfig.AuthorizePersonId + at_tester_Id + at_driver_Id
-            create_plan(all_ids, AuthorizePerson, "", smallConfig.department_config[6], all_luck, all_name, all_url,
+            create_plan(all_ids, AuthorizePerson, "", RedisKeyManager().get_key('IsCreatePlan'), all_luck, all_name, all_url,
                         all_creator)
-            if r.get(smallConfig.department_config[4]):
-                judgeSystem(r.get(smallConfig.department_config[4]))
+            if r.get(RedisKeyManager().get_key('PlanId')):
+                judgeSystem(r.get(RedisKeyManager().get_key('PlanId')))
             else:
                 Logger.debug("无小车计划id，无需检查系统")
         # 添加迭代进计划
         elif allPlan == '1':
             add_to_plan(all_ids, "", all_luck, all_name, all_url, all_creator,
-                        r.get(smallConfig.department_config[4]))
-            judgeSystem(r.get(smallConfig.department_config[4]))
+                        r.get(RedisKeyManager().get_key('PlanId')))
+            judgeSystem(r.get(RedisKeyManager().get_key('PlanId')))
 
     else:
         Logger.debug("没有新工单")

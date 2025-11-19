@@ -1,28 +1,26 @@
-- "si_findGongDan" # key 存今天所有的小车单 0
-- "si_error_toast_first" # key 记录小车单内字段有问题且已提醒的单id 1
-- "si_error_id" # key 记录小车单内字段有问题不能加入计划的单 2
-- "si_error_toast" # 创建计划时有记录加不进计划的小车单 3
-- "si_all_planId" # 存储当日小车计划id 4
-- "si_error_judge_done" # 存储计划中没有添加系统需要提醒的单 5
-- "si_allPlan" # 判断今天是否建了小车计划 6
-- "si_all_yet_planId" # 昨日小车计划id 7
-- "si_all_warn" # 记录计划中目前所有工单id 8
-- {"allYear": ["qiulinqian", "georgeling"]} # 每个时期负责小车的员工 9
-- "si_all_content" # 10
-- "si_remind" # 当日小车提醒了测试人员测试为1，否则为0 11
-- "si_all_yet_warn" # 12
-- "si_time_smallCar" # 记录当日时间 13
-- "si_is_judge_back" # 14
-- "si_dan_count" # 记录今日计划有多少单 15
-- "si_apiSelfInfo" # 接口自动化信息 16
-- "si_wholeNetwork" # 记录每天发送全网报告 17
-- "si_num_id" # 发布外灰名单的数量index 18
-- "si_ReadyEvn" # 记录每天发送部署准现网环境消息 19
-- "si_PersonOfWeek" # 记录每周的时间和对应的测试、评审人员 20
-- 'si_driver' # 记录发车司机 21
-- 'si_yPerson' # 昨天的测试、评审、开发司机 22
-- 'si_uiSelfInfo' # ui自动化信息 23
-- 'si_runSelf' # 自动化运行tag 24
-- 'si_plan_content' # 存储计划内容 提醒下车回退代码 25
-- 'si_xiaoe_last_archive_time' # 记录全网时间以便计算1h后归档 26
-- 'si_oversea_num_id' # 记录海外发布外灰名单的数量index 27
+# AIO数智小车配置
+AllDan: "si_findGongDan" # key 存今天所有的小车单 0
+ColumnErrorToasted: "si_error_toast_first" # key 记录小车单内字段有问题且已提醒的单id 1
+ColumnErrorId: "si_error_id" # key 记录小车单内字段有问题不能加入计划的单id 2
+DanErrorToast: "si_error_toast" # 创建计划时记录加不进计划已提醒的小车单 3
+PlanId: "si_all_planId" # 存储当日小车计划id 4
+NOSystemError: "si_error_judge_done" # 存储计划中没有添加系统需要提醒的单 5
+IsCreatePlan: "si_allPlan" # 判断今天是否建了小车计划 6
+YesterdatPlanId: "si_all_yet_planId" # 昨日小车计划id 7
+AllDanId: "si_all_warn" # 存储允许全网的小车单Id 8
+ReviewPassId: "si_all_content" # 存储评审通过的小车单ID 10
+RemindTest: "si_remind" # 当日小车提醒了测试人员测试为1，否则为0 11
+TodayTime: "si_time_smallCar" # 记录当日时间 13
+DanNum: "si_dan_count" # 记录计划中小车单状态全为评审通过后的数量 15
+ApiInfo: "si_apiSelfInfo" # 接口自动化信息 16
+WholeNetworkReport: "si_wholeNetwork" # 记录每天发送全网报告 17
+OutsideGrayIndex: "si_num_id" # 发布外灰名单的索引 18
+EvnTag: "si_ReadyEvn" # 19
+PersonOfWeek: "si_PersonOfWeek" # 记录每周的时间和对应的测试、评审人员 20
+Driver: 'si_driver' # 记录发车司机 21
+YesterdayPersonofWeek: 'si_yPerson' # 昨天的测试、评审、开发司机 22
+UiInfo: 'si_uiSelfInfo' # ui自动化信息 23
+RunSelfTag: 'si_runSelf' # 自动化运行tag 24
+PlanContent: 'si_plan_content' # 存储计划内容 提醒下车回退代码 25
+LastArchiveTime: 'si_xiaoe_last_archive_time' # 记录全网时间以便计算1h后归档 26
+OverseaGrayIndex: 'si_oversea_num_id' # 记录海外发布外灰名单的数量index 27

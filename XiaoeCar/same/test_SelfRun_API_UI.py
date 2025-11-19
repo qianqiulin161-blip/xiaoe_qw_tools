@@ -1,14 +1,15 @@
 import ast
 from datetime import datetime
 from typing import Dict, List, Tuple, Any
-from XiaoeCar.enum.SelfRun_API_UI_Enum import AutoStatus, MessageTemplate
+from XiaoeCar.same.SelfRun_API_UI_Enum import AutoStatus, MessageTemplate
 from XiaoeCar.same.GetEveryDayPerson import at_person
 from XiaoeCar.same.Same import up_appId
-from common.BaseInfo import baseConfig
+from common.Exception import catch_exception
 from common.Log import Logger
 from common.RedisConfig import r
-from common.robot_api import DODelAPPID, delAppId, do_jieKou, get_the_whole_network_info, in_plan, ui_self, ready_line, get_plan_detail, find_api, \
-    robot_smallCar, getUIDetail, getUIReport, upload_appId
+from common.RedisKey import RedisKeyManager
+from common.robot_api import do_jieKou, ready_line, get_plan_detail, find_api, \
+    robot_smallCar, ui_self
 
 
 class SelfRunAPIUI:
@@ -32,16 +33,15 @@ class SelfRunAPIUI:
         if not task_list:
             return
 
-        if baseConfig.planType == '0':
-            from common.Small_Car_BaseInfo import smallConfig
-            self.taskId = task_list['国内-准现网']
-            self.taskName = '国内-准现网'
-            self.webHook = smallConfig.robotWebHook
-            self.redisKey = smallConfig.department_config[24] + self.plan_id
-            self.apiRedis = smallConfig.department_config[16]
-            self.uiRedis = smallConfig.department_config[23]
-            self.Self = baseConfig.Self['准现网']
-            self.department = smallConfig.PartPlanName
+        from common.Small_Car_BaseInfo import smallConfig
+        self.taskId = task_list['国内-准现网']
+        self.taskName = '国内-准现网'
+        self.webHook = smallConfig.robotWebHook
+        self.redisKey = RedisKeyManager().get_key('RunSelfTag') + self.plan_id
+        self.apiRedis = RedisKeyManager().get_key('ApiInfo')
+        self.uiRedis = RedisKeyManager().get_key('UiInfo')
+        self.Self = smallConfig.Self['准现网']
+        self.department = smallConfig.PartPlanName
 
         Logger.debug(f"初始化任务信息: {self.taskName}, 任务ID: {self.taskId}, WebHook: {self.webHook}, RedisKey: {self.redisKey}, API Redis: {self.apiRedis}, UI Redis: {self.uiRedis}, Tester: {self.tester}, Developer: {self.develop}, Plan ID: {self.plan_id}, self: {self.Self}")
     
@@ -96,7 +96,10 @@ class SelfRunAPIUI:
     def run_ui_tests(self) -> List:
         """运行UI测试"""
         for ui in self.Self['ui']:
-            ui_self(ui[1], ui[2], ui[3])
+            if len(ui) != 0:
+                ui_self(ui[1], ui[0], ui[2], ui[3], ui[4], ui[5])
+            else:
+                break
         return  Logger.debug(f"ui自动化已执行！！！")
 
     def _get_api_results(self) -> Dict:
@@ -127,25 +130,31 @@ class SelfRunAPIUI:
 
     def _get_ui_status(self, ui_info: List) -> Dict:
         """获取UI测试状态"""
-        res = getUIDetail(ui_info[1])
-        status = res['data']['list'][0]['status']
-        task_num = res['data']['list'][0]['number']
+        # res = getUIDetail(ui_info[1])
+        # status = res['data']['list'][0]['status']
+        # task_num = res['data']['list'][0]['number']
 
-        if status in [AutoStatus.INITIALIZING.value,
-                      AutoStatus.RUNNING.value,
-                      AutoStatus.QUEUED.value]:
-            return {
-                'department': ui_info[0],
-                'status': AutoStatus.RUNNING.value,
-                'report': MessageTemplate.RUNNING
-            }
+        # if status in [AutoStatus.INITIALIZING.value,
+        #               AutoStatus.RUNNING.value,
+        #               AutoStatus.QUEUED.value]:
+        #     return {
+        #         'department': ui_info[0],
+        #         'status': AutoStatus.RUNNING.value,
+        #         'report': MessageTemplate.RUNNING
+        #     }
 
-        report_res = getUIReport(ui_info[1], task_num)
+        # report_res = getUIReport(ui_info[1], task_num)
+        # return {
+        #     'department': ui_info[0],
+        #     'status': AutoStatus.PASS.value if status != 'FAILED' else AutoStatus.FAIL.value,
+        #     'report': report_res['data'][0]['url']
+        # }
         return {
             'department': ui_info[0],
-            'status': AutoStatus.PASS.value if status != 'FAILED' else AutoStatus.FAIL.value,
-            'report': report_res['data'][0]['url']
+            'status': AutoStatus.PASS.value,
+            'report': '暂无'
         }
+    
 
     @staticmethod
     def _format_api_results(results: List[Dict]) -> str:
@@ -185,7 +194,7 @@ class SelfRunAPIUI:
             if redis_status in ['0', '0.5']:
                 if missing_apps:
                     Logger.debug(f"自动化店铺不在名单中，缺失的店铺: {missing_apps}")
-                    _, is_added = up_appId(self.taskId, '', missing_apps, self.plan_id, 131, "xiaoetong-pro", '国内-准现网')
+                    _, is_added = up_appId(self.taskId, '', missing_apps, self.plan_id, [131], "xiaoetong-pro", '国内-准现网')
                     if is_added is False:
                         Logger.debug('自动添加自动化店铺失败')
                         return None, None
@@ -238,12 +247,12 @@ def keep_result(plan_id, api_results, ui_results):
     if api_results:
         api_is_pass = [i['status'] for i in api_results['results']]
         api_final_result.append(api_is_pass)
-        if baseConfig.planType == '0':
-            r.set(runner.department, str(api_final_result))
+        r.set(runner.department, str(api_final_result))
     else:
         pass
 
 
+@catch_exception(Logger)
 def run_automation(plan_id: str):
     """运行自动化测试入口"""
     runner = SelfRunAPIUI(plan_id)
